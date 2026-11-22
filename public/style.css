@@ -224,6 +224,9 @@ details.more .opts { margin-top: var(--s4); }
 .about h2 { font-size: 24px; margin-bottom: var(--s4); }
 .about .lede { font-size: 16.5px; }
 .about ol, .about ul { color: var(--muted); padding-left: 20px; }
+.tasks { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s4); }
+.tasks a { padding: 7px 13px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); text-decoration: none; font-size: 14px; font-weight: 500; transition: border-color .18s, transform .18s var(--ease); }
+.tasks a:hover { border-color: var(--accent); transform: translateY(-1px); }
 .faq { margin: 0; display: grid; gap: var(--s2); }
 .faq dt { font-weight: 600; font-size: 16px; letter-spacing: -.01em; padding-top: var(--s4); border-top: 1px solid var(--line); }
 .faq dt:first-child { border-top: 0; padding-top: 0; }

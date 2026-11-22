@@ -100,7 +100,7 @@ export function icon(name, cls = 'ico') {
   return el;
 }
 /** The tinted icon tile for a tool (falls back to its category icon). */
-export const toolIcon = (tool) => icon(TOOL_ICON[tool.id] || tool.cat);
+export const toolIcon = (tool) => icon(TOOL_ICON[tool.base || tool.id] || tool.cat);
 /** An unframed inline icon. */
 export const glyph = (name) => icon(name, 'gl');
 

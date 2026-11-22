@@ -1,6 +1,7 @@
 import { TOOLS, CATEGORIES, toolById, BRAND } from '/shared/catalog.js';
 import { h, icon, toolIcon, glyph, fmtSize, runTool, resultsView, progressView, API } from './ui.js';
 import { meta, about, HOME_FAQS } from '/shared/seo.js';
+import { LANDINGS, ALL_PAGES, pageBySlug, landingsFor, aliasesOf } from '/shared/landing.js';
 import { player } from './widgets.js';
 import { buildOptions } from './options.js';
 import { recorderPage } from './special.js';
@@ -88,7 +89,7 @@ function buildSearch() {
 }
 function matchTools(query) {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
-  return TOOLS.filter((t) => words.every((w) => `${t.name} ${t.tagline} ${t.id} ${catOf[t.cat].name}`.toLowerCase().includes(w)))
+  return ALL_PAGES.filter((t) => words.every((w) => `${t.name} ${t.tagline} ${t.id} ${catOf[t.cat].name} ${aliasesOf(t).join(' ')}`.toLowerCase().includes(w)))
     .sort((a, b) => words.every((w) => b.name.toLowerCase().includes(w)) - words.every((w) => a.name.toLowerCase().includes(w)));
 }
 
@@ -159,7 +160,7 @@ function home() {
 
   filter.oninput = () => {
     const q = filter.value.trim();
-    const keep = new Set(matchTools(q).map((t) => t.id));
+    const keep = new Set(matchTools(q).map((t) => t.base || t.id));
     quick.hidden = !!q;
     let any = false;
     for (const s of sections) {
@@ -171,7 +172,7 @@ function home() {
     }
     none.hidden = any;
   };
-  main.append(faqBlock(HOME_FAQS));
+  main.append(h('section', { class: 'about' }, h('h2', {}, 'Popular conversions and tasks'), h('div', { class: 'tasks' }, LANDINGS.map((l) => link(l, l.name.replace(/ Converter$/, ''))))), faqBlock(HOME_FAQS));
   const asked = new URLSearchParams(location.search).get('q');
   if (asked) { filter.value = asked; filter.oninput(); }
   filter.onkeydown = (e) => { if (e.key === 'Enter') { const first = main.querySelector('.cat:not([hidden]) .entry:not([hidden])'); if (first && filter.value.trim()) go(first.getAttribute('href')); } };
@@ -210,7 +211,10 @@ function toolPage(tool) {
         h('div', {}, h('h2', {}, 'How it works'), h('ol', { class: 'steps' }, info.steps.map((st) => h('li', {}, h('b', {}, st.name), h('span', {}, st.text))))),
         h('div', {}, h('h2', {}, `More ${cat.id === 'pdf' ? 'PDF' : cat.name.toLowerCase().replace(/s$/, '')} tools`), h('ul', { class: 'related' }, others.map((t) => h('li', {}, link(t, t.name, glyph('arrow')))))))),
   );
-  main.append(h('section', { class: 'about' }, h('h2', {}, `About ${tool.name}`), h('p', { class: 'lede' }, info.intro)), faqBlock(info.faqs));
+  const tasks = landingsFor(tool.base || tool.id).filter((l) => l.id !== tool.id);
+  const parent = tool.base ? toolById[tool.base] : null;
+  main.append(h('section', { class: 'about' }, h('h2', {}, `About ${tool.name}`), h('p', { class: 'lede' }, info.intro),
+    (tasks.length || parent) && h('div', { class: 'tasks' }, parent && link(parent, parent.name), tasks.map((l) => link(l, l.name.replace(/ Converter$/, ''))))), faqBlock(info.faqs));
   const helpers = { jobPage, toolById };
   if (isRecorder) cleanup = recorderPage(tool, panel, helpers);
   else cleanup = jobPage(tool, panel);
@@ -218,7 +222,8 @@ function toolPage(tool) {
 
 /** The standard flow: choose file(s) → settings → process → download. */
 export function jobPage(tool, panel, { files: initial = [], onReset } = {}) {
-  const state = { files: [...initial], extra: null, opts: {} };
+  const preset = () => ({ ...(tool.preset || {}) }); // task pages arrive with their settings chosen
+  const state = { files: [...initial], extra: null, opts: preset() };
   let pl = null;
   let extraUrl = null;
   const free = () => { pl?.destroy(); pl = null; if (extraUrl) URL.revokeObjectURL(extraUrl); extraUrl = null; };
@@ -254,7 +259,7 @@ export function jobPage(tool, panel, { files: initial = [], onReset } = {}) {
     return h('div', {},
       h('div', { class: 'row spread', style: { marginBottom: '8px' } }, h('div', { class: 'section-label', style: { margin: 0 } }, many ? `${state.files.length} files — processed in this order` : 'File'),
         h('div', { class: 'row' }, tool.multiple && h('button', { class: 'btn small', type: 'button', onclick: () => input.click() }, 'Add more'), input,
-          h('button', { class: 'btn small ghost', type: 'button', onclick: () => { state.files = []; state.extra = null; state.opts = {}; draw(); } }, 'Start over'))),
+          h('button', { class: 'btn small ghost', type: 'button', onclick: () => { state.files = []; state.extra = null; state.opts = preset(); draw(); } }, 'Start over'))),
       h('ul', { class: 'files' }, state.files.map((f, i) => h('li', {},
         many && h('span', { class: 'n' }, i + 1), h('span', { class: 'name', title: f.name }, f.name), h('span', { class: 'size' }, fmtSize(f.size)),
         many && h('button', { class: 'btn small ghost', type: 'button', disabled: i === 0, 'aria-label': `Move ${f.name} up`, onclick: () => move(i, -1) }, glyph('up')),
@@ -294,10 +299,10 @@ export function jobPage(tool, panel, { files: initial = [], onReset } = {}) {
       panel.append(prog.el);
       if (tool.kind === 'text') prog.set(null);
       try {
-        const result = await runTool(tool.id, state, (f) => prog.set(f));
+        const result = await runTool(tool.base || tool.id, state, (f) => prog.set(f));
         free();
         panel.textContent = '';
-        panel.append(resultsView(result, { onReset: () => { state.files = []; state.extra = null; state.opts = {}; if (onReset) onReset(); else draw(); } }));
+        panel.append(resultsView(result, { onReset: () => { state.files = []; state.extra = null; state.opts = preset(); if (onReset) onReset(); else draw(); } }));
       } catch (e) {
         prog.el.remove();
         form.forEach((c) => { c.hidden = false; });
@@ -325,7 +330,7 @@ function render() {
   document.body.classList.remove('editor-mode');
   document.getElementById('menu').classList.remove('open');
   const id = decodeURIComponent(location.pathname.replace(/^\/+|\/+$/g, ''));
-  if (!id) home(); else if (toolById[id]) toolPage(toolById[id]); else notFound();
+  if (!id) home(); else if (pageBySlug(id)) toolPage(pageBySlug(id)); else notFound();
   if (location.hash && !id) document.getElementById(location.hash.slice(1))?.scrollIntoView(); else window.scrollTo(0, 0);
 }
 

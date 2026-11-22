@@ -2,6 +2,7 @@
 // Used by the server (pre-rendered HTML and structured data) and by the browser (the same text on screen),
 // so what search engines and AI assistants read is exactly what visitors see.
 import { TOOLS, CATEGORIES, BRAND } from './catalog.js';
+import { aliasesOf, ALL_PAGES } from './landing.js';
 
 const catOf = Object.fromEntries(CATEGORIES.map((c) => [c.id, c]));
 const list = (items) => (items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`);
@@ -17,9 +18,12 @@ export function meta(tool) {
       description: `${TOOLS.length} free online tools by ${BRAND.by}: trim and edit video, cut and convert audio, compress, merge and convert PDFs, and convert images, documents and archives. No sign-up, no watermark.`,
     };
   }
+  const alias = aliasesOf(tool);
   return {
-    title: `${tool.name} Online — Free, No Sign-up | ${BRAND.name}`,
-    description: clip(`${tool.tagline}. Free online ${tool.name.toLowerCase()} by ${BRAND.name}: no sign-up, no watermark, and your files are deleted automatically.`, 158),
+    // the title carries the name people most often search for alongside the tool's own name
+    title: !alias.length ? `${tool.name} Online — Free, No Sign-up | ${BRAND.name}`
+      : `${tool.name} — ${alias[0]} Online, Free | ${BRAND.name}`.length <= 66 ? `${tool.name} — ${alias[0]} Online, Free | ${BRAND.name}` : `${tool.name} — ${alias[0]} | ${BRAND.name}`,
+    description: clip(`${tool.tagline}. Free online ${alias.length ? alias[0].toLowerCase() : tool.name.toLowerCase()} by ${BRAND.name}: no sign-up, no watermark, and your files are deleted automatically.`, 158),
   };
 }
 
@@ -64,8 +68,11 @@ export function about(tool, { keepHours = 2, maxGb = 4 } = {}) {
       [sets.length ? 'Adjust the settings' : 'Start', sets.length ? `Set the ${list(sets)}. Sensible defaults are already chosen.` : `There is nothing to configure: press the button and the file${many} ${tool.multiple ? 'are' : 'is'} processed.`],
       ['Download', `Save the result. Files are removed from the server after ${keepHours} hours.`]];
   }
-  const intro = `${tool.tagline}. ${name} runs in your browser window with nothing to install${ins.length ? `, and works with ${list(ins.slice(0, 6))}${ins.length > 6 ? ' and other' : ''} files` : ''}. It is free, needs no account and adds no watermark.`;
+  const alias = aliasesOf(tool);
+  const general = `${tool.tagline}. ${name} runs in your browser window with nothing to install${ins.length ? `, and works with ${list(ins.slice(0, 6))}${ins.length > 6 ? ' and other' : ''} files` : ''}. It is free, needs no account and adds no watermark.`;
+  const intro = tool.intro ? `${tool.intro} It is free, needs no account and adds no watermark.` : `${general}${alias.length ? ` People also look for it as: ${alias.map((a) => a[0].toLowerCase() + a.slice(1)).join(', ')}.` : ''}`;
   const faqs = [];
+  if (tool.faq) faqs.push(tool.faq);
   if (EXTRA[tool.id]) faqs.push(EXTRA[tool.id]);
   faqs.push([`Is ${name} free?`, `Yes. ${name} is free to use, with no sign-up and no watermark on the result.`]);
   if (ins.length || outs.length) {
@@ -93,7 +100,7 @@ export function structuredData(tool, site) {
   if (!tool) {
     return [
       { '@context': 'https://schema.org', '@type': 'WebSite', name: BRAND.name, url: `${site}/`, publisher: org, potentialAction: { '@type': 'SearchAction', target: `${site}/?q={search_term_string}`, 'query-input': 'required name=search_term_string' } },
-      { '@context': 'https://schema.org', '@type': 'ItemList', name: `${BRAND.name} tools`, itemListElement: TOOLS.map((t, i) => ({ '@type': 'ListItem', position: i + 1, name: t.name, url: `${site}/${t.id}` })) },
+      { '@context': 'https://schema.org', '@type': 'ItemList', name: `${BRAND.name} tools`, itemListElement: ALL_PAGES.map((t, i) => ({ '@type': 'ListItem', position: i + 1, name: t.name, url: `${site}/${t.id}` })) },
       { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: HOME_FAQS.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) },
     ];
   }

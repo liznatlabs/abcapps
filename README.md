@@ -89,6 +89,11 @@ link, Open Graph and Twitter tags, and schema.org data (`WebApplication`, `HowTo
 `shared/seo.js` and is the same text shown on screen. Also served: `/sitemap.xml`, `/robots.txt`
 and `/llms.txt` (a plain-language map of the site for AI assistants).
 
+`shared/landing.js` adds a page for each specific search ("MP4 to MP3", "video to GIF", "compress video"…):
+the matching tool with its settings pre-chosen and text about that job. It also lists the other names
+people use for each tool ("video cutter", "unzip online"), which appear in titles, page text and site search.
+Add a page by adding one entry to `LANDINGS`; add a search phrase by adding it to `ALIASES`.
+
 After going live: add the site in Google Search Console and Bing Webmaster Tools and submit
 `/sitemap.xml`.
 

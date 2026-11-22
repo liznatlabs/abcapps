@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TOOLS, CATEGORIES, toolById, BRAND } from '../shared/catalog.js';
 import { meta, about, structuredData, HOME_FAQS } from '../shared/seo.js';
+import { LANDINGS, ALL_PAGES, pageBySlug, landingsFor } from '../shared/landing.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -16,6 +17,7 @@ function homeBody() {
   const m = meta(null);
   return `<section class="hero"><h1>Every file tool you need, in one place.</h1><p class="lede">${esc(m.description)}</p></section>
 ${CATEGORIES.map((c) => `<section class="cat" id="${c.id}"><h2>${esc(c.name)} tools</h2><p>${esc(c.blurb)}.</p><ul>${TOOLS.filter((t) => t.cat === c.id).map((t) => `<li><a href="/${t.id}">${esc(t.name)}</a> — ${esc(t.tagline)}</li>`).join('')}</ul></section>`).join('\n')}
+<section class="about"><h2>Popular conversions and tasks</h2><ul>${LANDINGS.map((l) => `<li><a href="/${l.id}">${esc(l.name)}</a></li>`).join('')}</ul></section>
 <section class="about"><h2>Questions and answers</h2><dl class="faq">${HOME_FAQS.map((f) => `<dt>${esc(f.q)}</dt><dd>${esc(f.a)}</dd>`).join('')}</dl></section>`;
 }
 
@@ -23,11 +25,14 @@ function toolBody(tool) {
   const a = about(tool);
   const cat = catOf[tool.cat];
   const others = TOOLS.filter((t) => t.cat === tool.cat && t.id !== tool.id);
+  const tasks = landingsFor(tool.base || tool.id).filter((l) => l.id !== tool.id);
+  const parent = tool.base ? toolById[tool.base] : null;
   return `<nav class="crumbs" aria-label="Breadcrumb"><a href="/">All tools</a> / <a href="/#${cat.id}">${esc(cat.name)}</a> / ${esc(tool.name)}</nav>
 <header class="tool-head"><div><span class="eyebrow">${esc(cat.name)}</span><h1>${esc(tool.name)}</h1><p>${esc(tool.tagline)}.</p></div></header>
 <section class="about"><p>${esc(a.intro)}</p>
 <h2>How to use ${esc(tool.name)}</h2><ol>${a.steps.map((s) => `<li><b>${esc(s.name)}.</b> ${esc(s.text)}</li>`).join('')}</ol>
 <h2>Questions and answers</h2><dl class="faq">${a.faqs.map((f) => `<dt>${esc(f.q)}</dt><dd>${esc(f.a)}</dd>`).join('')}</dl>
+${tasks.length || parent ? `<h2>Related</h2><ul>${parent ? `<li><a href="/${parent.id}">${esc(parent.name)}</a></li>` : ''}${tasks.map((l) => `<li><a href="/${l.id}">${esc(l.name)}</a></li>`).join('')}</ul>` : ''}
 <h2>More ${esc(cat.name)} tools</h2><ul>${others.map((t) => `<li><a href="/${t.id}">${esc(t.name)}</a></li>`).join('')}</ul></section>`;
 }
 
@@ -38,7 +43,7 @@ function toolBody(tool) {
  */
 export function renderPage(route, site, { api = '' } = {}) {
   const id = decodeURIComponent(route.replace(/^\/+|\/+$/g, ''));
-  const tool = toolById[id];
+  const tool = pageBySlug(id);
   const found = !id || !!tool;
   const m = found ? meta(tool) : { title: `Page not found | ${BRAND.name}`, description: `This page does not exist. Browse all ${TOOLS.length} tools on ${BRAND.name}.` };
   const url = `${site}${id && found ? `/${id}` : '/'}`;
@@ -64,12 +69,12 @@ export function renderPage(route, site, { api = '' } = {}) {
 export function sitemap(site) {
   const day = new Date().toISOString().slice(0, 10);
   const entry = (loc, priority) => `<url><loc>${esc(loc)}</loc><lastmod>${day}</lastmod><changefreq>weekly</changefreq><priority>${priority}</priority></url>`;
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[entry(`${site}/`, '1.0'), ...TOOLS.map((t) => entry(`${site}/${t.id}`, '0.8'))].join('\n')}\n</urlset>\n`;
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[entry(`${site}/`, '1.0'), ...TOOLS.map((t) => entry(`${site}/${t.id}`, '0.8')), ...LANDINGS.map((l) => entry(`${site}/${l.id}`, '0.7'))].join('\n')}\n</urlset>\n`;
 }
 
 export const robots = (site) => `User-agent: *\nAllow: /\nDisallow: /api/\n\nSitemap: ${site}/sitemap.xml\n`;
 
 /** A plain-language map of the site for AI assistants (llmstxt.org convention). */
 export function llms(site) {
-  return `# ${BRAND.name}\n\n> ${meta(null).description}\n\n${BRAND.name} is made by ${BRAND.by}. Every tool is free, needs no account and adds no watermark. Uploaded files are processed on the server and deleted automatically after two hours.\n\n${CATEGORIES.map((c) => `## ${c.name}\n\n${TOOLS.filter((t) => t.cat === c.id).map((t) => `- [${t.name}](${site}/${t.id}): ${t.tagline}.`).join('\n')}`).join('\n\n')}\n\n## Common questions\n\n${HOME_FAQS.map((f) => `- **${f.q}** ${f.a}`).join('\n')}\n`;
+  return `# ${BRAND.name}\n\n> ${meta(null).description}\n\n${BRAND.name} is made by ${BRAND.by}. Every tool is free, needs no account and adds no watermark. Uploaded files are processed on the server and deleted automatically after two hours.\n\n${CATEGORIES.map((c) => `## ${c.name}\n\n${TOOLS.filter((t) => t.cat === c.id).map((t) => `- [${t.name}](${site}/${t.id}): ${t.tagline}.`).join('\n')}`).join('\n\n')}\n\n## Popular conversions and tasks\n\n${LANDINGS.map((l) => `- [${l.name}](${site}/${l.id}): ${l.tagline}.`).join('\n')}\n\n## Common questions\n\n${HOME_FAQS.map((f) => `- **${f.q}** ${f.a}`).join('\n')}\n`;
 }

@@ -6,7 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { TOOLS } from '../shared/catalog.js';
+import { ALL_PAGES } from '../shared/landing.js';
 import { renderPage, sitemap, robots, llms } from '../server/seo.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -26,12 +26,12 @@ fs.cpSync(path.join(ROOT, 'shared'), path.join(OUT, 'shared'), { recursive: true
 
 const write = (rel, text) => { const p = path.join(OUT, rel); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, text); };
 write('index.html', renderPage('/', site, { api }).html);
-for (const t of TOOLS) write(`${t.id}/index.html`, renderPage(`/${t.id}`, site, { api }).html);
+for (const t of ALL_PAGES) write(`${t.id}/index.html`, renderPage(`/${t.id}`, site, { api }).html);
 write('404.html', renderPage('/page-not-found', site, { api }).html);
 write('sitemap.xml', sitemap(site));
 write('robots.txt', robots(site));
 write('llms.txt', llms(site));
 
-console.log(`Built ${TOOLS.length + 1} pages into dist/ for ${site}`);
+console.log(`Built ${ALL_PAGES.length + 1} pages into dist/ for ${site}`);
 if (api) console.log(`Tools will send files to ${api} — that server must list ${site} in ALLOWED_ORIGINS.`);
 else console.warn('WARNING: API_URL is not set. The pages will load, but the tools cannot process files until it points at a running processing server.');
