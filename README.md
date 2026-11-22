@@ -71,6 +71,20 @@ two Environment Variables:
 Running everything on one server instead (no Vercel) also works: the processing server serves the
 same pages itself. Set `SITE_URL` on it.
 
+### Hosting it for free
+
+Free plans change; check each host's current terms before relying on them.
+
+| Half | Free option | Config in this repo | Trade-off |
+|---|---|---|---|
+| Website | Vercel (Hobby) | `vercel.json` | Personal, non-commercial use on the free plan |
+| Website | Netlify or Cloudflare Pages | `netlify.toml` (Cloudflare: build `node scripts/build.mjs`, output `dist`) | — |
+| Processing server | Hugging Face Space (Docker) | `scripts/deploy-hf.sh`, `deploy/huggingface/README.md` | Most memory of the free options; sleeps when idle; meant for demos |
+| Processing server | Render (free web service) | `render.yaml` | About 512 MB of memory, sleeps after 15 idle minutes; large videos and Office files may fail |
+
+On small free servers set `MAX_UPLOAD_MB` (e.g. 150) and `MAX_PARALLEL=1`. The website shows a
+"waking up" notice when a sleeping server takes more than a few seconds to answer.
+
 ## Search and AI visibility
 
 Every address is served as complete HTML (`server/seo.js`): its own title and description, canonical

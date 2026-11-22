@@ -218,6 +218,8 @@ details.more .opts { margin-top: var(--s4); }
 .related a { display: flex; justify-content: space-between; align-items: center; padding: 8px var(--s2); border-radius: var(--r-sm); text-decoration: none; font-size: 14px; transition: background .15s; }
 .related a:hover { background: var(--surface-2); }
 .related a .gl { opacity: 0; color: var(--c); transition: opacity .18s; } .related a:hover .gl { opacity: 1; } .related .gl svg { width: 15px; height: 15px; }
+.wake { position: fixed; left: 50%; bottom: var(--s5); transform: translateX(-50%); z-index: var(--z-pop); max-width: min(560px, calc(100% - 32px)); padding: var(--s3) var(--s4); border-radius: var(--r); background: var(--text); color: var(--bg); font-size: 14px; font-weight: 500; box-shadow: var(--shadow); }
+.wake.down { background: var(--danger); color: #fff; }
 .about { margin-top: var(--s8); max-width: 820px; }
 .about h2 { font-size: 24px; margin-bottom: var(--s4); }
 .about .lede { font-size: 16.5px; }

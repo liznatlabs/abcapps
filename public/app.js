@@ -11,10 +11,20 @@ const catOf = Object.fromEntries(CATEGORIES.map((c) => [c.id, c]));
 let cleanup = null; // called when leaving a page (stops cameras, frees previews)
 let keepHours = 2;
 
+// Free hosts put the processing server to sleep when idle. This first call wakes it; if that takes a
+// while, say so instead of leaving people wondering why a tool is slow.
+const wake = h('div', { class: 'wake', role: 'status', hidden: true });
+document.body.append(wake);
+const slow = setTimeout(() => { wake.textContent = 'Waking up the processing server — this can take up to a minute after a quiet spell.'; wake.hidden = false; }, 3000);
 fetch(`${API}/api/health`).then((r) => r.json()).then((d) => {
+  clearTimeout(slow); wake.hidden = true;
   keepHours = d.keepHours;
   document.getElementById('foot-note').textContent = `Your files are processed on this server and deleted automatically after ${d.keepHours} hour${d.keepHours === 1 ? '' : 's'}.`;
-}).catch(() => {});
+}).catch(() => {
+  clearTimeout(slow);
+  wake.textContent = 'The processing server cannot be reached right now, so tools will not run. Please try again in a few minutes.';
+  wake.classList.add('down'); wake.hidden = false;
+});
 document.getElementById('year').textContent = new Date().getFullYear();
 
 // ───────── navigation ─────────
