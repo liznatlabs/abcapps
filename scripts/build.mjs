@@ -2,7 +2,7 @@
 // plus sitemap.xml, robots.txt and llms.txt. The processing server is deployed separately (see README).
 //
 //   SITE_URL  public address of the site (defaults to https://thefilekit.com on Vercel production)
-//   API_URL   address of the processing server, e.g. https://api.thefilekit.com
+//   API_URL   address of the processing server (defaults to the Render service on Vercel)
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,7 +16,9 @@ const OUT = path.join(ROOT, 'dist');
 const LIVE = 'https://thefilekit.com';
 const fallback = process.env.VERCEL_ENV === 'preview' ? `https://${process.env.VERCEL_URL}` : process.env.VERCEL ? LIVE : 'http://localhost:5123';
 const site = (process.env.SITE_URL || fallback).replace(/\/$/, '');
-const api = (process.env.API_URL || '').replace(/\/$/, '');
+// The processing server. On Vercel it defaults to the live one; a local build talks to whatever serves the pages.
+const LIVE_API = 'https://thefilekit-api.onrender.com';
+const api = (process.env.API_URL || (process.env.VERCEL ? LIVE_API : '')).replace(/\/$/, '');
 
 fs.rmSync(OUT, { recursive: true, force: true });
 fs.cpSync(path.join(ROOT, 'public'), OUT, { recursive: true });
