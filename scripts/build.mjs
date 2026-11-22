@@ -1,7 +1,7 @@
 // Builds the static website into dist/ for hosts such as Vercel: one complete HTML file per page,
 // plus sitemap.xml, robots.txt and llms.txt. The processing server is deployed separately (see README).
 //
-//   SITE_URL  public address of the site, e.g. https://thefilekit.com   (Vercel's own address is used if unset)
+//   SITE_URL  public address of the site (defaults to https://thefilekit.com on Vercel production)
 //   API_URL   address of the processing server, e.g. https://api.thefilekit.com
 import fs from 'node:fs';
 import path from 'node:path';
@@ -11,8 +11,11 @@ import { renderPage, sitemap, robots, llms } from '../server/seo.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'dist');
-const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
-const site = (process.env.SITE_URL || (vercelHost ? `https://${vercelHost}` : 'http://localhost:5123')).replace(/\/$/, '');
+// The address search engines should treat as the real one. Preview deployments use their own address;
+// a local build uses localhost; everything else is the live domain unless SITE_URL says otherwise.
+const LIVE = 'https://thefilekit.com';
+const fallback = process.env.VERCEL_ENV === 'preview' ? `https://${process.env.VERCEL_URL}` : process.env.VERCEL ? LIVE : 'http://localhost:5123';
+const site = (process.env.SITE_URL || fallback).replace(/\/$/, '');
 const api = (process.env.API_URL || '').replace(/\/$/, '');
 
 fs.rmSync(OUT, { recursive: true, force: true });

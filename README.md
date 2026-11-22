@@ -60,11 +60,7 @@ two Environment Variables:
 - `SITE_URL` — the public address, e.g. `https://thefilekit.com` (used for canonical links and the sitemap)
 - `API_URL` — the processing server's address from step 1
 
-**Automatic deploys.** Either of these redeploys the site on every push to `main`:
-
-- connect the repository in the Vercel dashboard (simplest; then delete `.github/workflows/deploy.yml`), or
-- keep `.github/workflows/deploy.yml` and add the secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`
-  and the variables `SITE_URL`, `API_URL` in GitHub.
+**Automatic deploys.** The repository is connected to Vercel, which rebuilds and publishes the site on every push to `main`.
 
 `./scripts/deploy.sh` deploys from this machine; `./scripts/deploy.sh --watch` redeploys whenever a file changes.
 
