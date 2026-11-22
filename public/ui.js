@@ -104,6 +104,9 @@ export const toolIcon = (tool) => icon(TOOL_ICON[tool.id] || tool.cat);
 /** An unframed inline icon. */
 export const glyph = (name) => icon(name, 'gl');
 
+/** Where the processing server lives. Empty when it serves this page itself. */
+export const API = (globalThis.FILEKIT_API || '').replace(/\/+$/, '');
+
 /** Upload files to a tool and resolve with its result. `onProgress(fraction|null)` — null means "processing". */
 export function runTool(toolId, { files = [], extra, opts = {} }, onProgress = () => {}) {
   return new Promise((resolve, reject) => {
@@ -112,13 +115,13 @@ export function runTool(toolId, { files = [], extra, opts = {} }, onProgress = (
     if (extra) fd.append('extra', extra, extra.name);
     fd.append('options', JSON.stringify(opts));
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', `/api/run/${toolId}`);
+    xhr.open('POST', `${API}/api/run/${toolId}`);
     xhr.responseType = 'json';
     xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
     xhr.upload.onload = () => onProgress(null);
     xhr.onload = () => {
       const body = xhr.response;
-      if (xhr.status >= 200 && xhr.status < 300 && body?.files) resolve(body);
+      if (xhr.status >= 200 && xhr.status < 300 && body?.files) { body.files.forEach((f) => { f.url = API + f.url; }); resolve(body); }
       else reject(new Error(body?.error || `The server could not process this request (${xhr.status}).`));
     };
     xhr.onerror = () => reject(new Error('The connection to the server was lost. Check that the app is still running and try again.'));
@@ -152,7 +155,7 @@ export function resultsView(result, { onReset, resetLabel = 'Start over' } = {})
     h('a', { class: `btn small ${one ? 'primary' : ''}`, href: f.url, download: f.name.split('/').pop() }, 'Download')))));
   if (files.length > shown.length) box.append(h('p', { class: 'hint' }, `…and ${files.length - shown.length} more. Use “Download all” to get everything.`));
   box.append(h('div', { class: 'row', style: { justifyContent: 'center' } },
-    !one && h('a', { class: 'btn primary big', href: `/api/zip/${result.job}` }, 'Download all (.zip)'),
+    !one && h('a', { class: 'btn primary big', href: `${API}/api/zip/${result.job}` }, 'Download all (.zip)'),
     onReset && h('button', { class: 'btn', onclick: onReset }, resetLabel)));
   return box;
 }

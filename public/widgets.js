@@ -1,5 +1,5 @@
 // Interactive option widgets: media player, trim bar, on-video rectangle, equalizer, PDF page picker.
-import { h, glyph, fmtTime, parseTime } from './ui.js';
+import { h, glyph, fmtTime, parseTime, API } from './ui.js';
 import { EQ_BANDS, EQ_PRESETS } from '/shared/catalog.js';
 
 /** A preview player with our own controls (so overlays on the video stay draggable). */
@@ -191,7 +191,7 @@ export function pagesWidget(opt, file, onChange) {
   el.append(grid);
   const fd = new FormData();
   fd.append('file', file, file.name);
-  fetch('/api/pdf-preview', { method: 'POST', body: fd }).then(async (res) => {
+  fetch(`${API}/api/pdf-preview`, { method: 'POST', body: fd }).then(async (res) => {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Preview failed');
     total = data.pages;
@@ -199,7 +199,7 @@ export function pagesWidget(opt, file, onChange) {
     grid.removeAttribute('aria-busy');
     cells = data.thumbs.map((src, i) => {
       const p = i + 1;
-      const img = h('img', { src, alt: `Page ${p}`, loading: 'lazy' });
+      const img = h('img', { src: API + src, alt: `Page ${p}`, loading: 'lazy' });
       const cell = h('div', { class: 'page', role: 'button', tabIndex: 0, 'aria-label': `Page ${p}` }, h('div', { class: 'thumb' }, img), p);
       const act = () => { if (opt.mode === 'select') { if (selected.has(p)) selected.delete(p); else selected.add(p); text.value = toRanges(selected); } else turn(p, 90); emit(); };
       cell.onclick = act;

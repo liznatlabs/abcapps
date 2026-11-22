@@ -37,6 +37,51 @@ Requires Node 18+ and these programs on the server:
 There are no accounts, payments or ads. The app has no login, so only expose it
 beyond `127.0.0.1` on a network you trust or behind your own authentication.
 
+## Deploying
+
+The app has two halves, and they go to different places:
+
+| Half | What it is | Where it can run |
+|---|---|---|
+| Website | Static pages built into `dist/` by `npm run build` | Vercel (or any static host) |
+| Processing server | `server/`, which runs ffmpeg, Ghostscript, LibreOffice and 7z | A container host: Railway, Render, Fly.io or a VPS, using the `Dockerfile` |
+
+Vercel cannot run the processing server: it has none of those programs, limits uploads to about
+4.5 MB and limits how long a request may run.
+
+**1. Processing server.** Build and run the `Dockerfile` on a container host. Set:
+
+- `ALLOWED_ORIGINS` — the website's address(es), comma-separated, e.g. `https://thefilekit.com`
+- a persistent or temporary volume at `/data`
+
+**2. Website on Vercel.** Import the repository in Vercel (settings come from `vercel.json`) and add
+two Environment Variables:
+
+- `SITE_URL` — the public address, e.g. `https://thefilekit.com` (used for canonical links and the sitemap)
+- `API_URL` — the processing server's address from step 1
+
+**Automatic deploys.** Either of these redeploys the site on every push to `main`:
+
+- connect the repository in the Vercel dashboard (simplest; then delete `.github/workflows/deploy.yml`), or
+- keep `.github/workflows/deploy.yml` and add the secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`
+  and the variables `SITE_URL`, `API_URL` in GitHub.
+
+`./scripts/deploy.sh` deploys from this machine; `./scripts/deploy.sh --watch` redeploys whenever a file changes.
+
+Running everything on one server instead (no Vercel) also works: the processing server serves the
+same pages itself. Set `SITE_URL` on it.
+
+## Search and AI visibility
+
+Every address is served as complete HTML (`server/seo.js`): its own title and description, canonical
+link, Open Graph and Twitter tags, and schema.org data (`WebApplication`, `HowTo`, `FAQPage`,
+`BreadcrumbList`; `WebSite`, `ItemList` and `FAQPage` on the home page). The wording lives in
+`shared/seo.js` and is the same text shown on screen. Also served: `/sitemap.xml`, `/robots.txt`
+and `/llms.txt` (a plain-language map of the site for AI assistants).
+
+After going live: add the site in Google Search Console and Bing Webmaster Tools and submit
+`/sitemap.xml`.
+
 ## Layout
 
 ```

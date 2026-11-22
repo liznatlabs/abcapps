@@ -7,6 +7,7 @@ import { ROOT, DATA_DIR, JOBS_DIR, UserError, run, safeName, extOf, baseOf, walk
 import { media } from './media.js';
 import { docs, pdfPreview } from './docs.js';
 import { toolById, INTERNAL, BRAND } from '../shared/catalog.js';
+import { renderPage, sitemap, robots, llms } from './seo.js';
 
 const PORT = Number(process.env.PORT) || 5123;
 const HOST = process.env.HOST || '127.0.0.1';
@@ -53,13 +54,31 @@ const discard = (req) => Promise.all(Object.values(req.files || {}).flat().map((
 
 const app = express();
 app.disable('x-powered-by');
+app.set('trust proxy', true);
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'no-referrer');
   next();
 });
 app.use('/shared', express.static(path.join(ROOT, 'shared')));
-app.use(express.static(path.join(ROOT, 'public')));
+app.use(express.static(path.join(ROOT, 'public'), { index: false, setHeaders: (res, file) => { if (/\.(woff2|png|svg)$/.test(file)) res.setHeader('Cache-Control', 'public, max-age=604800'); } }));
+
+// When the website is hosted somewhere else (for example on Vercel), it calls this server from another address.
+const ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map((o) => o.trim().replace(/\/$/, '')).filter(Boolean);
+app.use('/api', (req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && (ORIGINS.includes('*') || ORIGINS.includes(origin))) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+  }
+  if (req.method === 'OPTIONS') return res.status(204).end();
+  next();
+});
+/** The public address of the site, for canonical links and the sitemap. */
+const siteOf = (req) => (process.env.SITE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
 
 app.get('/api/health', (req, res) => res.json({ ok: true, brand: BRAND, maxUploadMb: MAX_UPLOAD_MB, keepHours: KEEP_HOURS }));
 
@@ -140,7 +159,10 @@ app.get('/api/zip/:job', wrap(async (req, res) => {
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found.' }));
 // every other address is a page of the single-page app (e.g. /compress-pdf)
-app.get('*', (req, res) => res.sendFile(path.join(ROOT, 'public', 'index.html')));
+app.get('/sitemap.xml', (req, res) => res.type('application/xml').send(sitemap(siteOf(req))));
+app.get('/robots.txt', (req, res) => res.type('text/plain').send(robots(siteOf(req))));
+app.get('/llms.txt', (req, res) => res.type('text/plain; charset=utf-8').send(llms(siteOf(req))));
+app.get('*', (req, res) => { const page = renderPage(req.path, siteOf(req)); res.status(page.status).type('html').send(page.html); });
 app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
   discard(req).catch(() => {});
   if (err?.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: `That file is too large. The limit is ${MAX_UPLOAD_MB >= 1024 ? `${MAX_UPLOAD_MB / 1024} GB` : `${MAX_UPLOAD_MB} MB`}.` });

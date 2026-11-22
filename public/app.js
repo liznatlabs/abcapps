@@ -1,5 +1,6 @@
 import { TOOLS, CATEGORIES, toolById, BRAND } from '/shared/catalog.js';
-import { h, icon, toolIcon, glyph, fmtSize, runTool, resultsView, progressView } from './ui.js';
+import { h, icon, toolIcon, glyph, fmtSize, runTool, resultsView, progressView, API } from './ui.js';
+import { meta, about, HOME_FAQS } from '/shared/seo.js';
 import { player } from './widgets.js';
 import { buildOptions } from './options.js';
 import { recorderPage } from './special.js';
@@ -10,7 +11,7 @@ const catOf = Object.fromEntries(CATEGORIES.map((c) => [c.id, c]));
 let cleanup = null; // called when leaving a page (stops cameras, frees previews)
 let keepHours = 2;
 
-fetch('/api/health').then((r) => r.json()).then((d) => {
+fetch(`${API}/api/health`).then((r) => r.json()).then((d) => {
   keepHours = d.keepHours;
   document.getElementById('foot-note').textContent = `Your files are processed on this server and deleted automatically after ${d.keepHours} hour${d.keepHours === 1 ? '' : 's'}.`;
 }).catch(() => {});
@@ -116,7 +117,7 @@ function card(t) {
 }
 
 function home() {
-  document.title = `${BRAND.name} by ${BRAND.by} — video, audio, PDF and converter tools`;
+  document.title = meta(null).title;
   const filter = h('input', { type: 'search', placeholder: 'Search tools — try “compress”', 'aria-label': 'Filter the tools below', autocomplete: 'off' });
   main.append(h('section', { class: 'hero' },
     h('span', { class: 'badge' }, h('i'), `${TOOLS.length} free tools · no sign-up`),
@@ -160,7 +161,15 @@ function home() {
     }
     none.hidden = any;
   };
+  main.append(faqBlock(HOME_FAQS));
+  const asked = new URLSearchParams(location.search).get('q');
+  if (asked) { filter.value = asked; filter.oninput(); }
   filter.onkeydown = (e) => { if (e.key === 'Enter') { const first = main.querySelector('.cat:not([hidden]) .entry:not([hidden])'); if (first && filter.value.trim()) go(first.getAttribute('href')); } };
+}
+
+/** Questions with their answers in plain view, so people and search engines read the same thing. */
+function faqBlock(faqs) {
+  return h('section', { class: 'about' }, h('h2', {}, 'Questions and answers'), h('dl', { class: 'faq' }, faqs.map((f) => [h('dt', {}, f.q), h('dd', {}, f.a)])));
 }
 
 function notFound() {
@@ -170,7 +179,7 @@ function notFound() {
 }
 
 function toolPage(tool) {
-  document.title = `${tool.name} — ${BRAND.name} by ${BRAND.by}`;
+  document.title = meta(tool).title;
   document.querySelectorAll('.menu-btn').forEach((b) => { if (b.dataset.cat === tool.cat) b.setAttribute('aria-current', 'true'); });
   if (tool.kind === 'editor') { // the editor takes the whole window
     document.body.classList.add('editor-mode');
@@ -182,18 +191,16 @@ function toolPage(tool) {
   const panel = h('section', { class: 'panel', 'aria-label': tool.name });
   const isRecorder = ['screen', 'webcam', 'voice'].includes(tool.kind);
   const others = TOOLS.filter((t) => t.cat === tool.cat && t.id !== tool.id);
+  const info = about(tool, { keepHours });
   main.append(
     h('nav', { class: 'crumbs', 'aria-label': 'Breadcrumb' }, h('a', { href: '/', 'data-link': true }, 'All tools'), h('i', {}, '/'), h('a', { href: `/#${cat.id}`, onclick: (e) => { e.preventDefault(); toSection(cat.id); } }, cat.name), h('i', {}, '/'), tool.name),
     h('header', { class: 'tool-head' }, toolIcon(tool), h('div', {}, h('span', { class: 'eyebrow' }, tool.group ? `${cat.name} · ${tool.group}` : cat.name), h('h1', {}, tool.name), h('p', {}, `${tool.tagline}.`))),
     h('div', { class: 'tool-layout' }, panel,
       h('aside', { class: 'tool-aside' },
-        h('div', {}, h('h2', {}, 'How it works'), h('ol', { class: 'steps' },
-          h('li', {}, h('b', {}, isRecorder ? 'Allow access' : tool.kind === 'text' ? 'Enter your text' : `Add your file${tool.multiple ? 's' : ''}`),
-            h('span', {}, isRecorder ? 'Your browser asks once. Recording happens on your device.' : tool.kind === 'text' ? 'Type or paste what you want read aloud.' : `Drop ${tool.multiple ? 'them' : 'it'} on the page or click to choose.`)),
-          h('li', {}, h('b', {}, isRecorder ? 'Record' : 'Adjust the settings'), h('span', {}, isRecorder ? 'Start, pause and stop whenever you like.' : 'Sensible defaults are already chosen for you.')),
-          h('li', {}, h('b', {}, 'Download'), h('span', {}, `Files are removed from the server after ${keepHours} hours.`)))),
+        h('div', {}, h('h2', {}, 'How it works'), h('ol', { class: 'steps' }, info.steps.map((st) => h('li', {}, h('b', {}, st.name), h('span', {}, st.text))))),
         h('div', {}, h('h2', {}, `More ${cat.id === 'pdf' ? 'PDF' : cat.name.toLowerCase().replace(/s$/, '')} tools`), h('ul', { class: 'related' }, others.map((t) => h('li', {}, link(t, t.name, glyph('arrow')))))))),
   );
+  main.append(h('section', { class: 'about' }, h('h2', {}, `About ${tool.name}`), h('p', { class: 'lede' }, info.intro)), faqBlock(info.faqs));
   const helpers = { jobPage, toolById };
   if (isRecorder) cleanup = recorderPage(tool, panel, helpers);
   else cleanup = jobPage(tool, panel);

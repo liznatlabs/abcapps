@@ -5,7 +5,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node server/index.js"
+    "start": "node server/index.js",
+    "build": "node scripts/build.mjs",
+    "deploy": "./scripts/deploy.sh"
   },
   "dependencies": {
     "@cantoo/pdf-lib": "^2.11.1",

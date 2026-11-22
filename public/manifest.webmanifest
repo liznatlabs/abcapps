@@ -1,0 +1,10 @@
+{
+  "name": "The File Kit by Liznat Labs",
+  "short_name": "The File Kit",
+  "description": "Free online tools for video, audio, PDF and file conversion.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#090a0d",
+  "theme_color": "#090a0d",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
